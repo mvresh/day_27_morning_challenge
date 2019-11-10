@@ -19,6 +19,64 @@
 // two of which are objects with x & y values, and the third being the distance,
 // e.g. {x:50, y:60}, {x: 100, y: 100}, 10. The expected result is a similar
 // object with the new co-ordinate.
+import 'dart:math';
+import 'package:executor/executor.dart';
+import 'package:http/http.dart' as http;
+import 'package:executorservices/executorservices.dart';
+import "dart:async";
+import 'dart:convert';
+import "dart:math";
+
+
+finalPoint(Map<String,int> firstPoint,Map<String,int> secondPoint,int distanceToMove){
+  int xSquaresDiff = pow((firstPoint['x'] - secondPoint['x']).abs(),2);
+  int ySquaresDiff = pow((firstPoint['y'] - secondPoint['y']).abs(),2);
+  int sumOfSquares = xSquaresDiff + ySquaresDiff;
+  double distanceRemaining = sqrt(sumOfSquares) - distanceToMove;
+  double xPoint = ((distanceToMove * secondPoint['x']) + (distanceRemaining*firstPoint['x'])) / (sqrt(sumOfSquares));
+  double yPoint = ((distanceToMove * secondPoint['y']) + (distanceRemaining*firstPoint['y'])) / (sqrt(sumOfSquares));
+  return {'x':xPoint.toStringAsFixed(2),'y':yPoint.toStringAsFixed(2)};
+}
+
+
+
+Stream<String> getPosts(final int max) async* {
+  for (int index = 0; index < max; index++) {
+    final post = await http.get(
+      "https://www.balldontlie.io/api/v1/players/$index",
+    );
+    yield post.body;
+
+//    String playerWeight = jsonDecode(post.body)['weight_pounds'];
+//    yield playerWeight;
+  }
+}
+
+
+int sum = 0;
+Future<int> returnId(final dynamic map) async {
+  await Future.delayed(Duration(seconds: 1));
+  print(map['weight_pounds']);
+  if(map['weight_pounds'] != null){
+    sum = sum + map['weight_pounds'];
+  }
+
+  return map['id'];
+}
+
+
 
 main() {
+  final executorService = ExecutorService.newFixedExecutor(3);
+  executorService
+      .subscribeToCallable(getPosts, 10)
+      .asyncMap(
+        (post) => executorService.submitCallable(returnId, jsonDecode(post)),
+  )
+      .listen(
+        (number) => print("event received: $number"),
+    onError: (error) => print("error received $error"),
+    onDone: () => print(sum),
+  );
+  print(finalPoint({'x':50, 'y':60}, {'x': 100, 'y': 100}, 10));
 }
