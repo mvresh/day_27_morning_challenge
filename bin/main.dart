@@ -40,43 +40,88 @@ finalPoint(Map<String,int> firstPoint,Map<String,int> secondPoint,int distanceTo
 
 
 
-Stream<String> getPosts(final int max) async* {
-  for (int index = 0; index < max; index++) {
-    final post = await http.get(
-      "https://www.balldontlie.io/api/v1/players/$index",
-    );
-    yield post.body;
+//Stream<String> getPosts(final int max) async* {
+//  for (int index = 0; index < max; index++) {
+//    final post = await http.get(
+//      "https://www.balldontlie.io/api/v1/players/$index",
+//    );
+//    yield post.body;
+//
+////    String playerWeight = jsonDecode(post.body)['weight_pounds'];
+////    yield playerWeight;
+//  }
+//}
 
-//    String playerWeight = jsonDecode(post.body)['weight_pounds'];
-//    yield playerWeight;
-  }
-}
+//Future<int> returnId(final dynamic map) async {
+//  await Future.delayed(Duration(seconds: 1));
+//  print(map['weight_pounds']);
+//  if(map['weight_pounds'] != null){
+//    sum = sum + map['weight_pounds'];
+//  }
+//
+//  return map['id'];
+//}
 
 
 int sum = 0;
-Future<int> returnId(final dynamic map) async {
-  await Future.delayed(Duration(seconds: 1));
-  print(map['weight_pounds']);
-  if(map['weight_pounds'] != null){
-    sum = sum + map['weight_pounds'];
-  }
-
-  return map['id'];
-}
-
-
+int counter = 0;
 
 main() {
   final executorService = ExecutorService.newFixedExecutor(3);
+//  executorService
+//      .subscribeToCallable(getPosts, 10)
+//      .asyncMap(
+//        (post) => executorService.submitCallable(returnId, jsonDecode(post)),
+//  )
+//      .listen(
+//        (number) => print("event received: $number"),
+//    onError: (error) => print("error received $error"),
+//    onDone: () => print(sum),
+//  );
+
+  runExecutor(executorService, 10);
+
   executorService
-      .subscribeToCallable(getPosts, 10)
-      .asyncMap(
-        (post) => executorService.submitCallable(returnId, jsonDecode(post)),
-  )
-      .listen(
-        (number) => print("event received: $number"),
-    onError: (error) => print("error received $error"),
-    onDone: () => print(sum),
-  );
+      .submitAction(onShotFunction)
+      .then((_) => print(sum/counter));
+
   print(finalPoint({'x':50, 'y':60}, {'x': 100, 'y': 100}, 10));
+}
+
+void runExecutor(ExecutorService exeService,int number){
+  for(int i = 1; i <= number; i++){
+    Map<String,dynamic> decodedData;
+    exeService
+        .submit(
+      GetJsonFromUrlTask("https://www.balldontlie.io/api/v1/players/${i}"),
+    )
+        .then((data){
+          print('event received : $i ');
+          decodedData = jsonDecode(data);
+          if(decodedData['weight_pounds'] != null){
+            print(decodedData['weight_pounds']);
+            counter ++;
+            print(counter);
+            sum = sum + decodedData['weight_pounds'];
+            print(sum);
+    }
+    });
+  }
+}
+
+class GetJsonFromUrlTask extends Task<String> {
+  GetJsonFromUrlTask(this.url);
+
+  final String url;
+
+  @override
+  FutureOr<String> execute() {
+    return http.get(url).then((response) {
+      return response.body;
+    });
+  }
+}
+
+void onShotFunction() async {
+  await Future.delayed(Duration(seconds: 3));
 }
